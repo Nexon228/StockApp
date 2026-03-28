@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -109,7 +110,9 @@ fun StockListScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(24.dp)
+            .padding(start = 24.dp, top = 24.dp, end = 24.dp)
+            .navigationBarsPadding()
+            .padding(bottom = 24.dp)
     ) {
         Text(
             text = "Moja aplikacja giełdowa",
