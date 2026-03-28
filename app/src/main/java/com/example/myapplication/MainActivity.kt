@@ -4,92 +4,106 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import com.example.myapplication.ui.theme.MyApplicationTheme
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Card
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
-import coil3.compose.AsyncImage
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.size
-import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.Row
-import androidx.compose.runtime.LaunchedEffect
-import kotlinx.coroutines.delay
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import coil3.compose.AsyncImage
+import com.example.myapplication.ui.theme.MyApplicationTheme
+import com.example.myapplication.viewmodel.StockDetailsViewModel
+import com.example.myapplication.viewmodel.StockListViewModel
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
-                StockApp()
+                StockNavGraph()
             }
         }
     }
 }
 
 @Composable
-fun StockApp() {
-    var tickerText by remember { mutableStateOf("") }
-    var stockList by remember { mutableStateOf(listOf<Stock>()) }
-    var messageText by remember { mutableStateOf("") }
-    val coroutineScope = rememberCoroutineScope()
-    var lastUpdateTime by remember { mutableStateOf("") }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(10000)
+fun StockNavGraph() {
+    val navController = rememberNavController()
 
-            if (stockList.isNotEmpty()) {
-                val updatedList = stockList.map { stock ->
-                    refreshStockPrice(stock) ?: stock
+    NavHost(
+        navController = navController,
+        startDestination = "list"
+    ) {
+        composable("list") {
+            StockListScreen(
+                onStockClick = { symbol ->
+                    navController.navigate("details/$symbol")
                 }
+            )
+        }
 
-                stockList = updatedList
-                messageText = "Ceny zaktualizowane"
-                lastUpdateTime = getCurrentTimeString()
-            }
+        composable(
+            route = "details/{symbol}",
+            arguments = listOf(navArgument("symbol") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val symbol = backStackEntry.arguments?.getString("symbol").orEmpty()
+
+            StockDetailsScreen(
+                symbol = symbol,
+                onBack = { navController.popBackStack() }
+            )
         }
     }
+}
+
+@Composable
+fun StockListScreen(
+    onStockClick: (String) -> Unit,
+    viewModel: StockListViewModel = viewModel()
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
@@ -103,8 +117,8 @@ fun StockApp() {
         )
 
         OutlinedTextField(
-            value = tickerText,
-            onValueChange = { tickerText = it },
+            value = uiState.tickerText,
+            onValueChange = viewModel::onTickerTextChange,
             label = { Text("Wpisz ticker, np. AAPL") },
             modifier = Modifier
                 .fillMaxWidth()
@@ -112,28 +126,7 @@ fun StockApp() {
         )
 
         Button(
-            onClick = {
-                val cleanedTicker = tickerText.trim().uppercase()
-
-                if (cleanedTicker.isEmpty()) {
-                    messageText = "Wpisz ticker spółki"
-                } else if (stockList.any { it.symbol == cleanedTicker }) {
-                    messageText = "Ta spółka jest już na liście"
-                } else {
-                    coroutineScope.launch {
-                        val stock = fetchStockFromApi(cleanedTicker)
-
-                        if (stock != null) {
-                            stockList = stockList + stock
-                            tickerText = ""
-                            messageText = "Dodano spółkę ${stock.symbol}"
-                            lastUpdateTime = getCurrentTimeString()
-                        } else {
-                            messageText = "Nie znaleziono spółki o tickerze $cleanedTicker"
-                        }
-                    }
-                }
-            },
+            onClick = { viewModel.addStock() },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 16.dp)
@@ -141,7 +134,7 @@ fun StockApp() {
             Text("Dodaj")
         }
 
-        if (lastUpdateTime.isNotEmpty() || stockList.isNotEmpty()) {
+        if (uiState.lastUpdateTime.isNotEmpty() || uiState.stockList.isNotEmpty()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -150,23 +143,13 @@ fun StockApp() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (lastUpdateTime.isNotEmpty())
-                        "Ostatnia aktualizacja: $lastUpdateTime"
+                    text = if (uiState.lastUpdateTime.isNotEmpty())
+                        "Ostatnia aktualizacja: ${uiState.lastUpdateTime}"
                     else
                         "Brak aktualizacji"
                 )
 
-                IconButton(
-                    onClick = {
-                        coroutineScope.launch {
-                            if (stockList.isNotEmpty()) {
-                                stockList = refreshAllStocks(stockList)
-                                messageText = "Ceny zaktualizowane"
-                                lastUpdateTime = getCurrentTimeString()
-                            }
-                        }
-                    }
-                ) {
+                IconButton(onClick = { viewModel.refreshAll() }) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = "Odśwież ceny"
@@ -186,23 +169,22 @@ fun StockApp() {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        for (stock in stockList) {
+        uiState.stockList.forEach { stock ->
             StockCard(
                 stock = stock,
-                onDelete = {
-                    stockList = stockList.filter { it.symbol != stock.symbol }
-                    messageText = "Usunięto spółkę ${stock.symbol}"
-                }
+                onClick = { onStockClick(stock.symbol) },
+                onDelete = { viewModel.deleteStock(stock.symbol) }
             )
         }
+
 
     }
 }
 
-
 @Composable
 fun StockCard(
     stock: Stock,
+    onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
     val changeColor =
@@ -210,6 +192,7 @@ fun StockCard(
         else Color(0xFFC62828)
 
     Card(
+        onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 8.dp),
@@ -229,9 +212,7 @@ fun StockCard(
                     contentScale = ContentScale.Fit
                 )
             } else {
-                Box(
-                    modifier = Modifier.size(64.dp)
-                )
+                Box(modifier = Modifier.size(64.dp))
             }
 
             Column(
@@ -261,10 +242,150 @@ fun StockCard(
         }
     }
 }
-fun getCurrentTimeString(): String {
-    val formatter = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-    return formatter.format(Date())
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun StockDetailsScreen(
+    symbol: String,
+    onBack: () -> Unit,
+    viewModel: StockDetailsViewModel = viewModel()
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(symbol) {
+        viewModel.loadStock(symbol)
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Szczegóły spółki") },
+                navigationIcon = {
+                    TextButton(onClick = onBack) {
+                        Text("Wstecz")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        when {
+            uiState.isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            uiState.errorText.isNotEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(uiState.errorText)
+                }
+            }
+
+            uiState.stock != null -> {
+                val stock = uiState.stock!!
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp)
+                ) {
+                    if (stock.logoUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = stock.logoUrl,
+                            contentDescription = stock.name,
+                            modifier = Modifier.size(96.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = stock.name,
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Text(
+                        text = stock.symbol,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text("Cena: ${formatPrice(stock.price)} USD")
+                    Text("Zmiana: ${formatChangePercent(stock.changePercent)}")
+                    Text("Branża: ${stock.industry}")
+                    Text("Kraj: ${stock.country}")
+                    Text("Giełda: ${stock.exchange}")
+                    Text("Waluta: ${stock.currency}")
+                    Text("IPO: ${stock.ipo}")
+                    Text("Kapitalizacja: ${String.format("%.2f", stock.marketCap)}")
+                    Text("Strona: ${stock.webUrl}")
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Text(
+                        text = "Wykres porównawczy",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    PriceBarsChart(
+                        values = listOf(
+                            "Open" to stock.open,
+                            "High" to stock.high,
+                            "Low" to stock.low,
+                            "Prev Close" to stock.previousClose,
+                            "Current" to stock.price
+                        )
+                    )
+                }
+            }
+        }
+    }
 }
+
+@Composable
+fun PriceBarsChart(
+    values: List<Pair<String, Double>>
+) {
+    val maxValue = values.maxOfOrNull { it.second } ?: 1.0
+
+    Column {
+        values.forEach { (label, value) ->
+            Text("$label: ${formatPrice(value)} USD")
+
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(28.dp)
+                    .padding(bottom = 8.dp)
+            ) {
+                val barWidth = (size.width * (value / maxValue)).toFloat()
+
+                drawLine(
+                    color = Color(0xFF1976D2),
+                    start = Offset(0f, size.height / 2),
+                    end = Offset(barWidth, size.height / 2),
+                    strokeWidth = size.height,
+                    cap = StrokeCap.Round
+                )
+            }
+        }
+    }
+}
+
 fun formatPrice(price: Double): String {
     return String.format("%.2f", price)
 }
@@ -274,11 +395,5 @@ fun formatChangePercent(changePercent: Double): String {
         "+${String.format("%.2f", changePercent)}%"
     } else {
         "${String.format("%.2f", changePercent)}%"
-    }
-}
-
-suspend fun refreshAllStocks(stockList: List<Stock>): List<Stock> {
-    return stockList.map { stock ->
-        refreshStockPrice(stock) ?: stock
     }
 }
