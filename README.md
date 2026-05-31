@@ -61,7 +61,7 @@ Wykonaj synchronizację Gradle:
 
 File > Sync Project with Gradle Files
 Uruchom aplikację na emulatorze lub fizycznym urządzeniu.
-API
+## API
 Aplikacja korzysta z API Finnhub:
 
 https://finnhub.io
