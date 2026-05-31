@@ -30,6 +30,7 @@ StockApp to aplikacja mobilna na Androida do obserwowania spółek giełdowych. 
 
 Projekt jest zorganizowany zgodnie z prostą strukturą MVVM:
 
+```text
 ui
   ekrany aplikacji i komponenty Compose
 
@@ -47,10 +48,11 @@ data/repository
 
 model
   modele danych używane w aplikacji
-Jak działa aplikacja
+```
+## Jak działa aplikacja?
 Po wpisaniu tickera aplikacja pobiera dane spółki z Finnhub API. Następnie zapisuje spółkę w lokalnej bazie Room i pokazuje ją na liście. Użytkownik może odświeżyć ceny, usunąć spółkę albo wejść w ekran szczegółów, gdzie widoczne są dodatkowe informacje.
 
-Uruchomienie projektu
+## Uruchomienie projektu
 Sklonuj repozytorium:
 git clone https://github.com/Nexon228/StockApp.git
 Otwórz projekt w Android Studio.
@@ -65,8 +67,7 @@ Aplikacja korzysta z API Finnhub:
 https://finnhub.io
 Dane pobierane są przez Retrofit z endpointów profilu spółki i aktualnej wyceny.
 
-Projekt wykonany jako aplikacja zaliczeniowa na Androida.
-
 ## Autor
 
+Projekt wykonany jako aplikacja zaliczeniowa Androida.
 Alan Woroch
