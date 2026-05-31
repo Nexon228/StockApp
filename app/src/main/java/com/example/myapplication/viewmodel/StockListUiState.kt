@@ -1,6 +1,6 @@
 package com.example.myapplication.viewmodel
 
-import com.example.myapplication.Stock
+import com.example.myapplication.model.Stock
 
 data class StockListUiState(
     val tickerText: String = "",
